@@ -42,12 +42,12 @@ class Client(object):
             self._token = self.login()
         return self._token
 
-    def login(self, timeout=30):
-        # type: (float) -> Optional[str]
+    def login(self, success=True, timeout=30):
+        # type: (bool, float) -> Optional[str]
         if self._auth:
             self._token = None
             params = {'username': self._auth[0], 'password': self._auth[1], 'accept_terms': True}
-            data = self.get('/login', params=params, use_token=False, timeout=timeout)
+            data = self.get('/login', params=params, use_token=False, success=success, timeout=timeout)
             if 'token' in data:
                 return data['token']
             else:
@@ -192,6 +192,28 @@ class Toolbox(object):
             self._dut_outputs = range(0, len(output_modules) * 8 - 1)
         return self._dut_outputs
 
+    def initialize(self):
+        # type: () -> None
+        self.ensure_power_on()
+        try:
+            self.dut.login(success=False)
+        except Exception:
+            logger.info('initializing gateway...')
+            self.start_authorized_mode()
+            self.create_or_update_user()
+            self.dut.login()
+        try:
+            data = self.dut.get('/get_modules')
+            data['inputs'][0]
+            data['outputs'][0]
+        except Exception:
+            logger.info('initializing modules...')
+            self.start_module_discovery()
+            self.discover_input_module()
+            self.discover_output_module()
+            time.sleep(2)
+            self.dut.get('/module_discover_stop')
+
     def factory_reset(self, confirm=True):
         # type: (bool) -> Dict[str,Any]
         assert self.dut._auth
@@ -230,6 +252,15 @@ class Toolbox(object):
         assert self.dut._auth
         user_data = {'username': self.dut._auth[0], 'password': self.dut._auth[1]}
         self.dut.get('/create_user', params=user_data, use_token=False, success=success)
+
+    def start_module_discovery(self):
+        # type: () -> None
+        self.dut.get('/module_discover_start')
+        for _ in xrange(10):
+            data = self.dut.get('/module_discover_status')
+            if data['running']:
+                return
+            time.sleep(0.2)
 
     def discover_input_module(self):
         # type: () -> None

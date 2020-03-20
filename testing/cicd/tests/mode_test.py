@@ -70,15 +70,10 @@ def test_power_cycle(toolbox, power_on):
 @pytest.mark.smoke
 def test_module_discover_noop(toolbox, discover_mode):
     logger.info('start module discovery')
-    toolbox.dut.get('/module_discover_start')
+    toolbox.start_module_discovery()
 
-    for _ in xrange(10):
-        data = toolbox.dut.get('/module_discover_status')
-        if data['running']:
-            break
-        time.sleep(0.2)
-    assert data['running'] == True
-
+    data = toolbox.dut.get('/module_discover_status')
+    assert data['running']
     toolbox.discover_input_module()
     toolbox.discover_output_module()
 
