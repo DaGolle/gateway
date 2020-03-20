@@ -685,11 +685,10 @@ class GatewayApi(object):
 
     def factory_reset(self):
         # type: () -> Dict[str,Any]
-        lock_file = constants.get_init_lockfile()
-        if os.path.isfile(lock_file):
-            return {'success': False, 'factory_reset': 'already_in_progress'}
-        with open(lock_file, 'w') as fd:
-            fd.write('factory_reset')
+        try:
+            subprocess.check_output(['python2', 'openmotics_cli.py', 'operator', 'factory-reset'])
+        except subprocess.CalledProcessError as exc:
+            return {'success': False, 'factory_reset': exc.output.strip()}
 
         def _restart():
             # type: () -> None
